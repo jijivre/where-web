@@ -12,6 +12,8 @@ function App() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const nextStartTimeRef = useRef(0);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -28,6 +30,7 @@ function App() {
 
     socket.on('streamStart', (data) => {
       setMessages((prev) => [...prev, `🔴 ${data.from} commence à parler...`]);
+      initAudioContext();
     });
 
     socket.on('streamEnd', (data) => {
@@ -49,6 +52,19 @@ function App() {
       stopStreaming();
     };
   }, []);
+
+  const initAudioContext = async () => {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioContext();
+
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+
+      nextStartTimeRef.current = audioContextRef.current.currentTime;
+    }
+    return audioContextRef.current;
+  };
 
   const connectAsGuide = () => {
     if (playerName.trim()) {
@@ -76,7 +92,7 @@ function App() {
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 64000
+        audioBitsPerSecond: 128000
       });
 
       mediaRecorderRef.current = mediaRecorder;
@@ -94,7 +110,8 @@ function App() {
         }
       };
 
-      mediaRecorder.start(100);
+      // Chunks de 250ms pour avoir des fichiers audio valides
+      mediaRecorder.start(250);
       setIsStreaming(true);
       socket.emit('streamStart', { from: playerName });
 
@@ -113,6 +130,11 @@ function App() {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
 
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
     setIsStreaming(false);
 
     if (playerName) {
@@ -120,12 +142,31 @@ function App() {
     }
   };
 
-  const playAudioChunk = (audioData: string) => {
+  const playAudioChunk = async (audioData: string) => {
     try {
-      const audio = new Audio(audioData);
-      audio.play().catch(err => console.error('Erreur lecture audio:', err));
+      const audioContext = await initAudioContext();
+
+      // Convertir base64 en ArrayBuffer
+      const response = await fetch(audioData);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Décoder l'audio
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Programmer la lecture pour éviter les gaps
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+
+      const currentTime = audioContext.currentTime;
+      const startTime = Math.max(currentTime, nextStartTimeRef.current);
+
+      source.start(startTime);
+      nextStartTimeRef.current = startTime + audioBuffer.duration;
+
     } catch (err) {
-      console.error('Erreur création audio:', err);
+      console.error('Erreur lecture audio:', err);
+      nextStartTimeRef.current = audioContextRef.current?.currentTime || 0;
     }
   };
 
