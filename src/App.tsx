@@ -6,13 +6,12 @@ const socket = io(import.meta.env.VITE_API_URL || "http://localhost:3001");
 function App() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<string[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -23,9 +22,16 @@ function App() {
       setMessages((prev) => [...prev, msg]);
     });
 
-    socket.on('audioMessage', (data) => {
-      playAudio(data.audio);
-      setMessages((prev) => [...prev, `🎤 ${data.from} a parlé`]);
+    socket.on('audioChunk', (data) => {
+      playAudioChunk(data.audio);
+    });
+
+    socket.on('streamStart', (data) => {
+      setMessages((prev) => [...prev, `🔴 ${data.from} commence à parler...`]);
+    });
+
+    socket.on('streamEnd', (data) => {
+      setMessages((prev) => [...prev, `⚫ ${data.from} s'est arrêté`]);
     });
 
     socket.on('guidesUpdate', (guides) => {
@@ -35,8 +41,12 @@ function App() {
     return () => {
       socket.off('connect');
       socket.off('message');
-      socket.off('audioMessage');
+      socket.off('audioChunk');
+      socket.off('streamStart');
+      socket.off('streamEnd');
       socket.off('guidesUpdate');
+
+      stopStreaming();
     };
   }, []);
 
@@ -53,61 +63,75 @@ function App() {
     }
   };
 
-  const startRecording = async () => {
+  const startStreaming = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      });
       streamRef.current = stream;
 
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 64000
+      });
+
       mediaRecorderRef.current = mediaRecorder;
 
-      const audioChunks: BlobPart[] = [];
-
       mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
+        if (event.data.size > 0) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            socket.emit('audioChunk', {
+              from: playerName,
+              audio: reader.result
+            });
+          };
+          reader.readAsDataURL(event.data);
+        }
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          socket.emit('audioMessage', {
-            from: playerName,
-            audio: reader.result
-          });
-        };
-        reader.readAsDataURL(audioBlob);
-      };
+      mediaRecorder.start(100);
+      setIsStreaming(true);
+      socket.emit('streamStart', { from: playerName });
 
-      mediaRecorder.start();
-      setIsRecording(true);
     } catch (err) {
       console.error('❌ Erreur accès micro:', err);
       alert('Impossible d\'accéder au microphone');
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+  const stopStreaming = () => {
+    if (mediaRecorderRef.current && isStreaming) {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    }
 
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+
+    setIsStreaming(false);
+
+    if (playerName) {
+      socket.emit('streamEnd', { from: playerName });
     }
   };
 
-  const playAudio = (audioData: string) => {
-    if (audioRef.current) {
-      audioRef.current.src = audioData;
-      audioRef.current.play().catch(err => console.error('Erreur lecture audio:', err));
+  const playAudioChunk = (audioData: string) => {
+    try {
+      const audio = new Audio(audioData);
+      audio.play().catch(err => console.error('Erreur lecture audio:', err));
+    } catch (err) {
+      console.error('Erreur création audio:', err);
     }
   };
 
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
-      <h1>🎤 Guide Vocal pour Unity</h1>
+      <h1>🎤 Guide Vocal Streaming pour Unity</h1>
 
       {!playerName ? (
         <div style={{ textAlign: 'center', marginTop: 30 }}>
@@ -151,15 +175,11 @@ function App() {
 
           <div style={{ marginBottom: 20, textAlign: 'center' }}>
             <button
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onMouseLeave={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
+              onClick={isStreaming ? stopStreaming : startStreaming}
               style={{
                 padding: '15px 30px',
                 fontSize: 18,
-                background: isRecording ? '#f44336' : '#2196F3',
+                background: isStreaming ? '#f44336' : '#2196F3',
                 color: 'white',
                 border: 'none',
                 borderRadius: 50,
@@ -168,7 +188,7 @@ function App() {
                 userSelect: 'none'
               }}
             >
-              {isRecording ? '🔴 Relâcher pour arrêter' : '🎤 Maintenir pour parler'}
+              {isStreaming ? '🔴 Arrêter le stream' : '🎤 Démarrer le stream'}
             </button>
           </div>
 
@@ -219,7 +239,7 @@ function App() {
                 <div key={i} style={{
                   marginBottom: 5,
                   padding: 5,
-                  background: msg.includes('🎤') ? '#e3f2fd' : 'white',
+                  background: msg.includes('🔴') || msg.includes('⚫') ? '#e3f2fd' : 'white',
                   borderRadius: 3,
                   fontSize: 14
                 }}>
@@ -236,12 +256,10 @@ function App() {
             textAlign: 'center'
           }}>
             {connectedGuides.length} guide(s) connecté(s) •
-            {isRecording ? ' 🔴 Enregistrement...' : ' ⚪ Prêt à parler'}
+            {isStreaming ? ' 🔴 Streaming en cours...' : ' ⚪ Prêt à streamer'}
           </div>
         </div>
       )}
-
-      <audio ref={audioRef} style={{ display: 'none' }} />
     </div>
   );
 }
