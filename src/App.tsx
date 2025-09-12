@@ -7,6 +7,7 @@ function App() {
   const [playerName, setPlayerName] = useState("");
   const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
   const [inCall, setInCall] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
@@ -33,12 +34,12 @@ function App() {
   const connectAsGuide = () => {
     if (playerName.trim().length > 1) {
       socket.emit("joinAsGuide", playerName);
+      setIsConnected(true);
     } else {
       alert("⚠️ Choisis un pseudo d'au moins 2 caractères");
     }
   };
 
-  // ✅ Fonction séparée pour gérer l'appui sur Entrée
   const handleKeyDownPseudo = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       connectAsGuide();
@@ -68,14 +69,14 @@ function App() {
     <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
       <h1>🎤 Appel Audio Temps Réel</h1>
 
-      {!playerName ? (
+      {!isConnected ? (
         <div>
           <input
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder="Votre pseudo"
             style={{ padding: 10, marginRight: 10 }}
-            onKeyDown={handleKeyDownPseudo} // ✅ Fonction séparée
+            onKeyDown={handleKeyDownPseudo}
           />
           <button onClick={connectAsGuide}>Se connecter</button>
         </div>
