@@ -7,6 +7,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
+    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -14,17 +15,19 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
   },
-  "include": ["src"]
+  "include": ["src"],
+
+  /* Paths */
+  "baseUrl": ".",
+  "paths": {
+    "@/*": ["./src/*"]
+  }
 }
