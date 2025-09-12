@@ -7,7 +7,8 @@ function App() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState<string | null>(null); // ✅ pseudo validé
+  const [tempName, setTempName] = useState(""); // ✅ saisie en cours
   const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
   const [inCall, setInCall] = useState(false);
 
@@ -42,8 +43,9 @@ function App() {
   }, []);
 
   const connectAsGuide = () => {
-    const trimmed = playerName.trim();
+    const trimmed = tempName.trim();
     if (trimmed.length >= 3 && trimmed.length <= 100) {
+      setPlayerName(trimmed); // ✅ validation
       socket.emit("joinAsGuide", trimmed);
     } else {
       alert("Le pseudo doit contenir entre 3 et 100 caractères");
@@ -55,6 +57,7 @@ function App() {
     setInCall(false);
     setConnectedGuides([]);
     setMessages([]);
+    setPlayerName(null); // ✅ retour à l’écran de connexion
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -131,8 +134,8 @@ function App() {
       {!playerName ? (
         <div style={{ textAlign: "center", marginTop: 30 }}>
           <input
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
             placeholder="Votre nom de guide (3 à 100 caractères)"
             minLength={3}
             maxLength={100}
