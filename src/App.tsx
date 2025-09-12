@@ -1,66 +1,63 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { socket } from './socket';
 import './App.css';
-import axios, { type AxiosResponse } from 'axios';
 
 function App() {
 
-  const [pass, setPass] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const location = useLocation();
+  
+  const errorLobby = (location.state as { error: string } | undefined)?.error || "";
 
-// const VALIDPASSTEST : string = "12345";
-
-// Create an instance of axios with some default configuration
-
-  const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_SERVER_URL
-  });
-
-// Define a generic API function
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(errorLobby);
+  const navigate = useNavigate();
 
   const onValid = () => {
-    setError("")   
+    setError("");
 
-    if(!pass.trim()){
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const roomId = pin.trim().toUpperCase();
+    if (!roomId) {
       setError("Veuillez entrer un ID de connexion");
       return;
     }
 
-    (async () => {
-      try {
-        const response : AxiosResponse = 
-        await apiClient.post(`auth/login`,
-          {    
-            username: 'emilys',
-            password: 'emilyspass'
-         });
-        console.log(response.data)
-      } catch (error) {
-        console.log(error)
-        setError("Erreur de connexion")
-      }
-      
-    })();
-    
-
-    console.log("Hello world :", pass)
+  socket.emit("room:join", { roomId }, (res?: { ok: boolean; error?: string; players?: string[] }) => {
  
-  }
+    if (!res?.ok) {
+      setError(res?.error || "PIN invalide");
+      return;
+    }
+
+    navigate("/lobby", {
+      state: {
+        players: res.players ?? []
+      },
+    });
+  });
+
+  };
 
   return (
-    <>
+    <div className='mainForm'>
       <div className='header'>
         <img src="./where-logo.png" className='logo'/>
       </div>
-      <h1>Connexion</h1>    
-        <div>
-          <p className='error'>{error}</p>
-          <input type='text' 
-            onInput={(e: React.ChangeEvent<HTMLInputElement>) => setPass(e.target.value)} 
-            value={pass}
-          />
-          <input type='submit' onClick={onValid} value={"Connect !"}/>
+      <div className='form'>
+        <p className='error'>{error}</p>
+        <input
+          type='text'
+          placeholder='Entrez un code PIN'
+          onChange={(e) => setPin(e.target.value)}
+          value={pin}
+        />
+        <input type='submit' onClick={onValid} value={"Connect !"}/>
       </div>
-    </>
+    </div>
   );
 }
 
