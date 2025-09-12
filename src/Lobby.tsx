@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BeatLoader } from "react-spinners";
 import './Lobby.css';
 import { useLocation, useNavigate } from "react-router";
-import { socket } from './socket';
+import { socket } from './webrtc';
 
 function Lobby() {
 

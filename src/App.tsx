@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { socket } from './socket';
+import { socket } from './webrtc';
 import './App.css';
 
 function App() {
@@ -56,6 +56,7 @@ function App() {
           value={pin}
         />
         <input type='submit' onClick={onValid} value={"Connect !"}/>
+        <button onClick={()=> navigate("/call") }>Call</button>
       </div>
     </div>
   );
