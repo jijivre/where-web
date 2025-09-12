@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { initCall, socket } from "./webrtc";
+import { initCall, endCall, socket } from "./webrtc";
 
 function App() {
   const [message, setMessage] = useState("");
@@ -31,8 +31,10 @@ function App() {
   }, []);
 
   const connectAsGuide = () => {
-    if (playerName.trim()) {
+    if (playerName.trim().length > 1) { // ⚡ au moins 2 caractères
       socket.emit("joinAsGuide", playerName);
+    } else {
+      alert("⚠️ Choisis un pseudo d'au moins 2 caractères");
     }
   };
 
@@ -50,6 +52,11 @@ function App() {
     }
   };
 
+  const stopCall = () => {
+    endCall();
+    setInCall(false);
+  };
+
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
       <h1>🎤 Appel Audio Temps Réel</h1>
@@ -59,9 +66,9 @@ function App() {
           <input
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Votre nom"
+            placeholder="Votre pseudo"
             style={{ padding: 10, marginRight: 10 }}
-            onKeyPress={(e) => e.key === "Enter" && connectAsGuide()}
+            onKeyDown={(e) => e.key === "Enter" && connectAsGuide()} // ✅ corrigé
           />
           <button onClick={connectAsGuide}>Se connecter</button>
         </div>
@@ -75,9 +82,13 @@ function App() {
             </p>
           )}
 
-          <button onClick={startCall} disabled={inCall}>
-            {inCall ? "✅ En appel" : "📞 Démarrer appel"}
-          </button>
+          {!inCall ? (
+            <button onClick={startCall}>📞 Démarrer appel</button>
+          ) : (
+            <button onClick={stopCall} style={{ background: "red", color: "white" }}>
+              🔴 Raccrocher
+            </button>
+          )}
 
           <div style={{ marginTop: 20 }}>
             <input
@@ -85,7 +96,7 @@ function App() {
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Message texte..."
               style={{ padding: 10, marginRight: 10 }}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
             <button onClick={sendMessage}>Envoyer</button>
           </div>

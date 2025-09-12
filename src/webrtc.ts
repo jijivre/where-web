@@ -56,4 +56,16 @@ export const initCall = async (audioElement: HTMLAudioElement) => {
   socket.emit("webrtc-offer", offer);
 };
 
+export const endCall = () => {
+  if (localStream) {
+    localStream.getTracks().forEach((track) => track.stop());
+    localStream = null;
+  }
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  console.log("📴 Appel terminé");
+};
+
 export { socket };
