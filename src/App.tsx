@@ -1,53 +1,42 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 
 const socket = io(import.meta.env.VITE_API_URL || "http://localhost:3001");
 
 function App() {
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<string[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
-  const [messages, setMessages] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
 
-  const localAudioRef = useRef<HTMLAudioElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    socket.on("connect", () => console.log("🔗 Connecté au serveur"));
-
-    socket.on("guidesUpdate", (guides) => setConnectedGuides(guides));
-    socket.on("message", (msg) => setMessages((prev) => [...prev, msg]));
-
-    socket.on("offer", async ({ from, offer }) => {
-      if (!pcRef.current) initPeerConnection(from);
-      await pcRef.current?.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pcRef.current?.createAnswer();
-      if (answer) {
-        await pcRef.current?.setLocalDescription(answer);
-        socket.emit("answer", { to: from, answer });
-      }
+    socket.on("connect", () => {
+      console.log("🔗 Connecté au serveur");
     });
 
-    socket.on("answer", async ({ answer }) => {
-      await pcRef.current?.setRemoteDescription(new RTCSessionDescription(answer));
+    socket.on("message", (msg) => {
+      setMessages((prev) => [...prev, msg]);
     });
 
-    socket.on("iceCandidate", async ({ candidate }) => {
-      try {
-        await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (err) {
-        console.error("Erreur ICE", err);
-      }
+    socket.on("audioMessage", (data) => {
+      playAudio(data.audio);
+      setMessages((prev) => [...prev, `🎤 ${data.from} a parlé`]);
+    });
+
+    socket.on("guidesUpdate", (guides) => {
+      setConnectedGuides(guides);
     });
 
     return () => {
       socket.off("connect");
-      socket.off("guidesUpdate");
       socket.off("message");
-      socket.off("offer");
-      socket.off("answer");
-      socket.off("iceCandidate");
+      socket.off("audioMessage");
+      socket.off("guidesUpdate");
     };
   }, []);
 
@@ -58,86 +47,213 @@ function App() {
   };
 
   const sendMessage = () => {
-    if (message.trim()) {
+    if (message.trim() && playerName) {
       socket.emit("message", `${playerName}: ${message}`);
       setMessage("");
     }
   };
 
-  const startCall = async () => {
-    const pc = initPeerConnection();
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-    if (localAudioRef.current) localAudioRef.current.srcObject = stream;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+      const audioChunks: BlobPart[] = [];
 
-    socket.emit("offer", { to: "all", offer });
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          socket.emit("audioMessage", {
+            from: playerName,
+            audio: reader.result,
+          });
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("❌ Erreur accès micro:", err);
+      alert("Impossible d'accéder au microphone");
+    }
   };
 
-  const initPeerConnection = (targetId?: string) => {
-    const pc = new RTCPeerConnection();
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("iceCandidate", { to: targetId || "all", candidate: event.candidate });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
-    };
+    }
+  };
 
-    pc.ontrack = (event) => {
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0];
-    };
-
-    pcRef.current = pc;
-    return pc;
+  const playAudio = (audioData: string) => {
+    if (audioRef.current) {
+      audioRef.current.src = audioData;
+      audioRef.current
+        .play()
+        .catch((err) => console.error("Erreur lecture audio:", err));
+    }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>🎤 Guide Vocal (chat + audio temps réel)</h1>
+    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+      <h1>🎤 Guide Vocal pour Unity</h1>
 
       {!playerName ? (
-        <div>
+        <div style={{ textAlign: "center", marginTop: 30 }}>
           <input
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Votre nom"
+            placeholder="Votre nom de guide"
+            style={{ padding: 10, marginRight: 10, fontSize: 16 }}
+            onKeyPress={(e) => e.key === "Enter" && connectAsGuide()}
           />
-          <button onClick={connectAsGuide}>Se connecter</button>
+          <button
+            onClick={connectAsGuide}
+            style={{
+              padding: 10,
+              fontSize: 16,
+              background: "#4CAF50",
+              color: "white",
+              border: "none",
+              cursor: "pointer",
+              borderRadius: 5,
+            }}
+          >
+            Se connecter
+          </button>
         </div>
       ) : (
-        <>
-          <div>
-            <strong>Connecté en tant que {playerName}</strong>
-            <div>Guides: {connectedGuides.join(", ")}</div>
+        <div>
+          <div
+            style={{
+              marginBottom: 20,
+              padding: 10,
+              background: "#f0f0f0",
+              borderRadius: 5,
+            }}
+          >
+            <strong>👋 Connecté en tant que: {playerName}</strong>
+            {connectedGuides.length > 1 && (
+              <div style={{ marginTop: 5, fontSize: 14, color: "#666" }}>
+                Autres guides:{" "}
+                {connectedGuides.filter((g) => g !== playerName).join(", ")}
+              </div>
+            )}
           </div>
 
-          <div>
+          <div style={{ marginBottom: 20, textAlign: "center" }}>
+            <button
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onMouseLeave={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              style={{
+                padding: "15px 30px",
+                fontSize: 18,
+                background: isRecording ? "#f44336" : "#2196F3",
+                color: "white",
+                border: "none",
+                borderRadius: 50,
+                cursor: "pointer",
+                transition: "all 0.3s",
+                userSelect: "none",
+              }}
+            >
+              {isRecording ? "🔴 Relâcher pour arrêter" : "🎤 Maintenir pour parler"}
+            </button>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Message"
+              placeholder="Message texte..."
+              style={{
+                padding: 10,
+                width: "70%",
+                marginRight: 10,
+                border: "1px solid #ddd",
+                borderRadius: 5,
+              }}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             />
-            <button onClick={sendMessage}>Envoyer</button>
+            <button
+              onClick={sendMessage}
+              style={{
+                padding: 10,
+                background: "#2196F3",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: 5,
+              }}
+            >
+              Envoyer
+            </button>
           </div>
 
-          <div style={{ border: "1px solid #ddd", padding: 10, marginTop: 10, height: 150, overflowY: "auto" }}>
-            {messages.map((m, i) => (
-              <div key={i}>{m}</div>
-            ))}
+          <div
+            style={{
+              height: 300,
+              overflowY: "scroll",
+              border: "1px solid #ddd",
+              padding: 10,
+              background: "#fafafa",
+              borderRadius: 5,
+            }}
+          >
+            <h3 style={{ margin: "0 0 10px 0", color: "#666" }}>Messages:</h3>
+            {messages.length === 0 ? (
+              <div style={{ color: "#999", fontStyle: "italic" }}>
+                Aucun message pour le moment...
+              </div>
+            ) : (
+              messages.map((msg, i) => (
+                <div
+                  key={i}
+                  style={{
+                    marginBottom: 5,
+                    padding: 5,
+                    background: msg.includes("🎤") ? "#e3f2fd" : "white",
+                    borderRadius: 3,
+                    fontSize: 14,
+                  }}
+                >
+                  {msg}
+                </div>
+              ))
+            )}
           </div>
 
-          <button style={{ marginTop: 20 }} onClick={startCall}>
-            📞 Démarrer l’appel vocal
-          </button>
-
-          <audio ref={localAudioRef} autoPlay muted />
-          <audio ref={remoteAudioRef} autoPlay />
-        </>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 12,
+              color: "#666",
+              textAlign: "center",
+            }}
+          >
+            {connectedGuides.length} guide(s) connecté(s) •
+            {isRecording ? " 🔴 Enregistrement..." : " ⚪ Prêt à parler"}
+          </div>
+        </div>
       )}
+
+      <audio ref={audioRef} style={{ display: "none" }} />
     </div>
   );
 }
