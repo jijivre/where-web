@@ -1,4 +1,4 @@
-/* @import 'tailwindcss';
+@import 'tailwindcss';
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -183,31 +183,4 @@ button:focus-visible {
   body {
     @apply bg-background text-foreground;
   }
-} */
-
-html, body{
-  margin: 0;
-  padding: 0;
-  background-color: rgb(33, 33, 33);
-  color: white;
-}
-
-*{
-  box-sizing: border-box;
-}
-
-@font-face {
-  font-family: "Nintendo-DS-BIOS";
-  src: url("/Nintendo-DS-BIOS.ttf") format("woff2");
-  font-weight: normal;
-  font-style: normal;
-}
-
-input, button {
-  font-family: "Nintendo-DS-BIOS", sans-serif;
-  font-size: 16px;
-}
-
-p{
-  font-family: "Nintendo-DS-BIOS", sans-serif;
 }
