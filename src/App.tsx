@@ -1,247 +1,63 @@
-import { useEffect, useState, useRef } from 'react';
-import { io } from 'socket.io-client';
-
-const socket = io('http://localhost:3001');
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { socket } from './webrtc';
+import './App.css';
 
 function App() {
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [playerName, setPlayerName] = useState('');
-  const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const location = useLocation();
+  
+  const errorLobby = (location.state as { error: string } | undefined)?.error || "";
 
-  useEffect(() => {
-    socket.on('connect', () => {
-      console.log('🔗 Connecté au serveur');
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(errorLobby);
+  const navigate = useNavigate();
+
+  const onValid = () => {
+    setError("");
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const roomId = pin.trim().toUpperCase();
+    if (!roomId) {
+      setError("Veuillez entrer un ID de connexion");
+      return;
+    }
+
+  socket.emit("room:join", { roomId }, (res?: { ok: boolean; error?: string; players?: string[] }) => {
+ 
+    if (!res?.ok) {
+      setError(res?.error || "PIN invalide");
+      return;
+    }
+
+    navigate("/lobby", {
+      state: {
+        players: res.players ?? []
+      },
     });
+  });
 
-    socket.on('message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    socket.on('audioMessage', (data) => {
-      playAudio(data.audio);
-      setMessages((prev) => [...prev, `🎤 ${data.from} a parlé`]);
-    });
-
-    socket.on('guidesUpdate', (guides) => {
-      setConnectedGuides(guides);
-    });
-
-    return () => {
-      socket.off('connect');
-      socket.off('message');
-      socket.off('audioMessage');
-      socket.off('guidesUpdate');
-    };
-  }, []);
-
-  const connectAsGuide = () => {
-    if (playerName.trim()) {
-      socket.emit('joinAsGuide', playerName);
-    }
-  };
-
-  const sendMessage = () => {
-    if (message.trim() && playerName) {
-      socket.emit('message', `${playerName}: ${message}`);
-      setMessage('');
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      const audioChunks: BlobPart[] = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          socket.emit('audioMessage', {
-            from: playerName,
-            audio: reader.result
-          });
-        };
-        reader.readAsDataURL(audioBlob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error('❌ Erreur accès micro:', err);
-      alert('Impossible d\'accéder au microphone');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    }
-  };
-
-  const playAudio = (audioData: string) => {
-    if (audioRef.current) {
-      audioRef.current.src = audioData;
-      audioRef.current.play().catch(err => console.error('Erreur lecture audio:', err));
-    }
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: '0 auto' }}>
-      <h1>🎤 Guide Vocal pour Unity</h1>
-
-      {!playerName ? (
-        <div style={{ textAlign: 'center', marginTop: 30 }}>
-          <input
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Votre nom de guide"
-            style={{ padding: 10, marginRight: 10, fontSize: 16 }}
-            onKeyPress={(e) => e.key === 'Enter' && connectAsGuide()}
-          />
-          <button
-            onClick={connectAsGuide}
-            style={{
-              padding: 10,
-              fontSize: 16,
-              background: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: 5
-            }}
-          >
-            Se connecter
-          </button>
-        </div>
-      ) : (
-        <div>
-          <div style={{
-            marginBottom: 20,
-            padding: 10,
-            background: '#f0f0f0',
-            borderRadius: 5
-          }}>
-            <strong>👋 Connecté en tant que: {playerName}</strong>
-            {connectedGuides.length > 1 && (
-              <div style={{ marginTop: 5, fontSize: 14, color: '#666' }}>
-                Autres guides: {connectedGuides.filter(g => g !== playerName).join(', ')}
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 20, textAlign: 'center' }}>
-            <button
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onMouseLeave={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
-              style={{
-                padding: '15px 30px',
-                fontSize: 18,
-                background: isRecording ? '#f44336' : '#2196F3',
-                color: 'white',
-                border: 'none',
-                borderRadius: 50,
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                userSelect: 'none'
-              }}
-            >
-              {isRecording ? '🔴 Relâcher pour arrêter' : '🎤 Maintenir pour parler'}
-            </button>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Message texte..."
-              style={{
-                padding: 10,
-                width: '70%',
-                marginRight: 10,
-                border: '1px solid #ddd',
-                borderRadius: 5
-              }}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <button
-              onClick={sendMessage}
-              style={{
-                padding: 10,
-                background: '#2196F3',
-                color: 'white',
-                border: 'none',
-                cursor: 'pointer',
-                borderRadius: 5
-              }}
-            >
-              Envoyer
-            </button>
-          </div>
-
-          <div style={{
-            height: 300,
-            overflowY: 'scroll',
-            border: '1px solid #ddd',
-            padding: 10,
-            background: '#fafafa',
-            borderRadius: 5
-          }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#666' }}>Messages:</h3>
-            {messages.length === 0 ? (
-              <div style={{ color: '#999', fontStyle: 'italic' }}>
-                Aucun message pour le moment...
-              </div>
-            ) : (
-              messages.map((msg, i) => (
-                <div key={i} style={{
-                  marginBottom: 5,
-                  padding: 5,
-                  background: msg.includes('🎤') ? '#e3f2fd' : 'white',
-                  borderRadius: 3,
-                  fontSize: 14
-                }}>
-                  {msg}
-                </div>
-              ))
-            )}
-          </div>
-
-          <div style={{
-            marginTop: 10,
-            fontSize: 12,
-            color: '#666',
-            textAlign: 'center'
-          }}>
-            {connectedGuides.length} guide(s) connecté(s) •
-            {isRecording ? ' 🔴 Enregistrement...' : ' ⚪ Prêt à parler'}
-          </div>
-        </div>
-      )}
-
-      <audio ref={audioRef} style={{ display: 'none' }} />
+    <div className='mainForm'>
+      <div className='header'>
+        <img src="./where-logo.png" className='logo'/>
+      </div>
+      <div className='form'>
+        <p className='error'>{error}</p>
+        <input
+          type='text'
+          placeholder='Entrez un code PIN'
+          onChange={(e) => setPin(e.target.value)}
+          value={pin}
+        />
+        <input type='submit' onClick={onValid} value={"Connect !"}/>
+        <button onClick={()=> navigate("/call") }>Call</button>
+      </div>
     </div>
   );
 }
