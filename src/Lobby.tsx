@@ -71,9 +71,13 @@ function Lobby() {
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
           <img
-            src="/assets/map_level_one_export.png"
+            src="/src/assets/map_level_one_export.png"
             alt="Carte du jeu"
             className="game-map-image"
+            onError={(e) => {
+              console.error('Image not found:', e.target.src);
+              e.target.style.display = 'none';
+            }}
           />
         </div>
       </div>
