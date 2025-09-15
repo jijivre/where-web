@@ -3,6 +3,7 @@ import { BeatLoader } from "react-spinners";
 import './Lobby.css';
 import { useLocation, useNavigate } from "react-router";
 import { socket } from './webrtc';
+import mapImage from './assets/map_level_one_export.png';
 
 function Lobby() {
   const location = useLocation();
@@ -71,13 +72,9 @@ function Lobby() {
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
           <img
-            src="/src/assets/map_level_one_export.png"
+            src={mapImage}
             alt="Carte du jeu"
             className="game-map-image"
-            onError={(e) => {
-              console.error('Image not found:', e.target.src);
-              e.target.style.display = 'none';
-            }}
           />
         </div>
       </div>
