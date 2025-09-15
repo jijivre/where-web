@@ -1,35 +1,64 @@
-import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { socket } from './webrtc';
 import './App.css';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
 
 function App() {
-  const [count, setCount] = useState(0);
+
+  const location = useLocation();
+  
+  const errorLobby = (location.state as { error: string } | undefined)?.error || "";
+
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(errorLobby);
+  const navigate = useNavigate();
+
+  const onValid = () => {
+    setError("");
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const roomId = pin.trim().toUpperCase();
+    if (!roomId) {
+      setError("Veuillez entrer un ID de connexion");
+      return;
+    }
+
+  socket.emit("room:join", { roomId }, (res?: { ok: boolean; error?: string; players?: string[] }) => {
+ 
+    if (!res?.ok) {
+      setError(res?.error || "PIN invalide");
+      return;
+    }
+
+    navigate("/lobby", {
+      state: {
+        players: res.players ?? []
+      },
+    });
+  });
+
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className='mainForm'>
+      <div className='header'>
+        <img src="./where-logo.png" className='logo'/>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <Button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </Button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+      <div className='form'>
+        <p className='error'>{error}</p>
+        <input
+          type='text'
+          placeholder='Entrez un code PIN'
+          onChange={(e) => setPin(e.target.value)}
+          value={pin}
+        />
+        <input type='submit' onClick={onValid} value={"Connect !"}/>
+        <button onClick={()=> navigate("/call") }>Call</button>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </div>
   );
 }
 
