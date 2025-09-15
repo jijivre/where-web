@@ -1,131 +1,63 @@
-import { useEffect, useRef, useState } from "react";
-import { initCall, endCall, socket } from "./webrtc";
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { socket } from './webrtc';
+import './App.css';
 
 function App() {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
-  const [playerName, setPlayerName] = useState("");
-  const [connectedGuides, setConnectedGuides] = useState<string[]>([]);
-  const [inCall, setInCall] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
 
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const location = useLocation();
+  
+  const errorLobby = (location.state as { error: string } | undefined)?.error || "";
 
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("🔗 Connecté au serveur");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(errorLobby);
+  const navigate = useNavigate();
+
+  const onValid = () => {
+    setError("");
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const roomId = pin.trim().toUpperCase();
+    if (!roomId) {
+      setError("Veuillez entrer un ID de connexion");
+      return;
+    }
+
+  socket.emit("room:join", { roomId }, (res?: { ok: boolean; error?: string; players?: string[] }) => {
+ 
+    if (!res?.ok) {
+      setError(res?.error || "PIN invalide");
+      return;
+    }
+
+    navigate("/lobby", {
+      state: {
+        players: res.players ?? []
+      },
     });
+  });
 
-    socket.on("message", (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    socket.on("guidesUpdate", (guides) => {
-      setConnectedGuides(guides);
-    });
-
-    return () => {
-      socket.off("connect");
-      socket.off("message");
-      socket.off("guidesUpdate");
-    };
-  }, []);
-
-  const connectAsGuide = () => {
-    if (playerName.trim().length > 1) {
-      socket.emit("joinAsGuide", playerName);
-      setIsConnected(true);
-    } else {
-      alert("⚠️ Choisis un pseudo d'au moins 2 caractères");
-    }
-  };
-
-  const handleKeyDownPseudo = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      connectAsGuide();
-    }
-  };
-
-  const sendMessage = () => {
-    if (message.trim() && playerName) {
-      socket.emit("message", `${playerName}: ${message}`);
-      setMessage("");
-    }
-  };
-
-  const startCall = async () => {
-    if (remoteAudioRef.current) {
-      await initCall(remoteAudioRef.current);
-      setInCall(true);
-    }
-  };
-
-  const stopCall = () => {
-    endCall();
-    setInCall(false);
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
-      <h1>🎤 Appel Audio Temps Réel</h1>
-
-      {!isConnected ? (
-        <div>
-          <input
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Votre pseudo"
-            style={{ padding: 10, marginRight: 10 }}
-            onKeyDown={handleKeyDownPseudo}
-          />
-          <button onClick={connectAsGuide}>Se connecter</button>
-        </div>
-      ) : (
-        <div>
-          <p>Connecté en tant que: {playerName}</p>
-          {connectedGuides.length > 1 && (
-            <p>
-              Autres guides:{" "}
-              {connectedGuides.filter((g) => g !== playerName).join(", ")}
-            </p>
-          )}
-
-          {!inCall ? (
-            <button onClick={startCall}>📞 Démarrer appel</button>
-          ) : (
-            <button onClick={stopCall} style={{ background: "red", color: "white" }}>
-              🔴 Raccrocher
-            </button>
-          )}
-
-          <div style={{ marginTop: 20 }}>
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Message texte..."
-              style={{ padding: 10, marginRight: 10 }}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            />
-            <button onClick={sendMessage}>Envoyer</button>
-          </div>
-
-          <div
-            style={{
-              marginTop: 20,
-              border: "1px solid #ddd",
-              padding: 10,
-              height: 200,
-              overflowY: "scroll",
-            }}
-          >
-            {messages.map((msg, i) => (
-              <div key={i}>{msg}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+    <div className='mainForm'>
+      <div className='header'>
+        <img src="./where-logo.png" className='logo'/>
+      </div>
+      <div className='form'>
+        <p className='error'>{error}</p>
+        <input
+          type='text'
+          placeholder='Entrez un code PIN'
+          onChange={(e) => setPin(e.target.value)}
+          value={pin}
+        />
+        <input type='submit' onClick={onValid} value={"Connect !"}/>
+        <button onClick={()=> navigate("/call") }>Call</button>
+      </div>
     </div>
   );
 }
