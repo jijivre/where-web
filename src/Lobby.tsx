@@ -67,15 +67,9 @@ function Lobby() {
 
   return (
     <div className="lobby-layout">
-      {/* Zone Unity (gauche) */}
       <div className="unity-zone">
-        <div className="unity-label">jeu du joueur unity</div>
+        <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
-          {/* Zone de jeu Unity */}
-          <div className="unity-waiting">
-            <BeatLoader color="#f59e0b" size={12} />
-            <p>En attente du joueur Unity...</p>
-          </div>
         </div>
       </div>
 
@@ -91,7 +85,7 @@ function Lobby() {
 
         <div className="players-list-section">
           <div className="players-list-title">
-            liste joueur connecté
+            Joueurs connectés
           </div>
           <div className="players-vertical-list">
             {players.map((player) => (

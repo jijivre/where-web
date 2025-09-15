@@ -287,12 +287,12 @@
 }
 
 .players-vertical-list::-webkit-scrollbar-thumb {
-    background: #ffffff;
+    background: #666666;
     border-radius: 3px;
 }
 
 .players-vertical-list::-webkit-scrollbar-thumb:hover {
-    background: #cccccc;
+    background: #777777;
 }
 
 @media (max-width: 768px) {
