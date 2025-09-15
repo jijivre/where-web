@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import App from './App.tsx';
 import Call from './Call.tsx';
+import Game from './Game.tsx';
 import Lobby from './Lobby.tsx';
 import './index.css';
 
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<App />} />
         <Route path="/lobby" element={<Lobby />} />
         <Route path="/call" element={<Call />} />
+        <Route path="/game" element={<Game />} />
       </Routes>     
     </BrowserRouter>
   </StrictMode>,

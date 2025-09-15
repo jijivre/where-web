@@ -26,6 +26,15 @@ function Lobby() {
         setPlayers(list);
     });
 
+    socket.on("game:started", ()=>{
+      console.log("Lancement du jeu");
+        navigate("/game", {
+        state: {
+          socketId: socket.id
+        },
+    });
+    })
+
     return () => {
         socket.off("room:players");
     };
