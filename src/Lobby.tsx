@@ -70,6 +70,11 @@ function Lobby() {
       <div className="unity-zone">
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
+          <img
+            src="/assets/map_level_one_export.png"
+            alt="Carte du jeu"
+            className="game-map-image"
+          />
         </div>
       </div>
 
@@ -136,6 +141,8 @@ function Lobby() {
           </div>
         </div>
       )}
+
+
     </div>
   );
 }
