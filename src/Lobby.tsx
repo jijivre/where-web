@@ -5,9 +5,8 @@ import { useLocation, useNavigate } from "react-router";
 import { socket } from './webrtc';
 
 function Lobby() {
-
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const initialPlayers = (location.state as { players: string[] } | undefined)?.players || [];
 
@@ -15,19 +14,22 @@ function Lobby() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [pseudoInput, setPseudoInput] = useState<string>("");
   const [error, setError] = useState<string>("");
-  const navigate = useNavigate();
- 
-  useEffect(() => {
+  const [currentPlayer, setCurrentPlayer] = useState<string>("");
+  const [roomId] = useState<string>("123456");
 
+  useEffect(() => {
     setShowModal(true);
 
-    socket.on("room:players", (list: any[]) =>
-    {
-        setPlayers(list);
+    socket.on("room:players", (list: any[]) => {
+      setPlayers(list);
+      const current = list.find(p => p.socketId === socket.id);
+      if (current) {
+        setCurrentPlayer(current.pseudo);
+      }
     });
 
     return () => {
-        socket.off("room:players");
+      socket.off("room:players");
     };
   }, []);
 
@@ -39,24 +41,21 @@ function Lobby() {
     }
     setError("");
 
-    socket.emit("player:create", p, (ack?: { ok: boolean; pseudo?: string; error:string}) => {
-
+    socket.emit("player:create", p, (ack?: { ok: boolean; pseudo?: string; error: string}) => {
       if (!ack?.ok) {
-
-        if(ack?.error == "Room non trouvée pour ce joueur")
-        {
+        if(ack?.error === "Room non trouvée pour ce joueur") {
           navigate("/", {
             state: {
-              error: ack?.error 
+              error: ack?.error
             },
           });
           return;
         }
-
         setError("Pseudo déjà pris. Réessaie.");
         return;
       }
 
+      setCurrentPlayer(p);
       setShowModal(false);
     });
   };
@@ -64,36 +63,64 @@ function Lobby() {
   const quitLobby = () => {
     socket.disconnect();
     navigate("/");
-  }
+  };
 
   return (
-    <div style={{ fontFamily: "system-ui" }}>
-      <button
-        onClick={quitLobby}
-        style={{ position: "absolute", top: 16, right: 16, padding: "8px 12px", border: "none", background: "#ffffffff", color: "black", cursor: "pointer" }}
-      >
-        Quitter le lobby
-      </button>
-      <main style={{ maxWidth: 720, margin: "24px auto", padding: "0 16px" }}>
-        <h3>Joueurs connectés</h3>
-        {players.length === 0 ? (
-          <p>Aucun joueur pour l’instant…</p>
-        ) : (
-          <div className="list-player">
-              {players.map((p) => (
-                <div className="card-player" key={p.socketId}>
-                  {!p.pseudo || p.pseudo.toLowerCase() === "anonyme" ? <BeatLoader size={8} color="white"/> : p.pseudo}
-                </div>
-              ))}
+    <div className="lobby-layout">
+      {/* Zone Unity (gauche) */}
+      <div className="unity-zone">
+        <div className="unity-label">jeu du joueur unity</div>
+        <div className="unity-viewport">
+          {/* Zone de jeu Unity */}
+          <div className="unity-waiting">
+            <BeatLoader color="#f59e0b" size={12} />
+            <p>En attente du joueur Unity...</p>
           </div>
-        )}
-      </main>
+        </div>
+      </div>
 
+      <div className="interface-zone">
+        <div className="header-section">
+          <div className="player-name-display">
+            {currentPlayer || "Anonyme"}
+          </div>
+          <div className="room-id-display">
+            {roomId}
+          </div>
+        </div>
+
+        <div className="players-list-section">
+          <div className="players-list-title">
+            liste joueur connecté
+          </div>
+          <div className="players-vertical-list">
+            {players.map((player) => (
+              <div
+                key={player.socketId}
+                className={`player-circle ${player.socketId === socket.id ? 'current-player' : ''}`}
+                title={player.pseudo || "Anonyme"}
+              >
+                {!player.pseudo || player.pseudo.toLowerCase() === "anonyme" ? (
+                  <BeatLoader size={4} color="white" />
+                ) : (
+                  <span className="player-initial">
+                    {player.pseudo.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button onClick={quitLobby} className="quit-button-absolute">
+        ✕
+      </button>
 
       {showModal && (
-        <div style={overlayStyle} role="dialog" aria-modal="true" aria-labelledby="pseudo-title">
-          <div style={modalStyle}>
-            <h3 id="pseudo-title" style={{ marginTop: 0 }}>Choisis ton pseudo</h3>
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pseudo-title">
+          <div className="modal-content">
+            <h3 id="pseudo-title">Choisis ton pseudo</h3>
             <input
               autoFocus
               type="text"
@@ -101,60 +128,22 @@ function Lobby() {
               value={pseudoInput}
               onChange={(e) => setPseudoInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitPseudo()}
-              style={inputStyle}
+              className="pseudo-input"
             />
-            {error && <p style={{ color: "#b91c1c", margin: "8px 0 0" }}>{error}</p>}
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              <button onClick={submitPseudo} style={btnPrimary}>Valider</button>
+            {error && <p className="error-message">{error}</p>}
+            <div className="modal-buttons">
+              <button onClick={submitPseudo} className="validate-button">
+                Valider
+              </button>
             </div>
-            <p style={{ fontSize: 12, color: "#6b7280", marginTop: 12 }}>
-              Astuce : ton pseudo sera mémorisé pour ce lobby.
+            <p className="modal-hint">
+              💡 Astuce : ton pseudo sera mémorisé pour ce lobby.
             </p>
           </div>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-        <BeatLoader color="white"/>
-        <p>En attente du joueur Unity</p>
-      </div>
     </div>
   );
 }
-
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,.4)",
-  display: "grid",
-  placeItems: "center",
-  zIndex: 1000,
-};
-
-const modalStyle: React.CSSProperties = {
-  width: "min(92vw, 420px)",
-  background: "#fff",
-  padding: 20,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  height: 28,
-  border: "1px solid #e5e7eb",
-  padding: "0 12px",
-  fontSize: 16,
-  outline: "none",
-};
-
-const btnPrimary: React.CSSProperties = {
-  height: 40,
-  padding: "0 14px",
-  border: "none",
-  background: "#111827",
-  color: "#fff",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
 
 export default Lobby;
