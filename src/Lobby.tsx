@@ -17,57 +17,27 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
   const [roomId] = useState<string>("123456");
-  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
 
   useEffect(() => {
-    const isPageReload = !socket.connected && initialPlayers.length === 0;
-
-    if (isPageReload) {
-      setIsReconnecting(true);
-      navigate("/", {
-        state: {
-          error: "Session expirée après rechargement. Veuillez vous reconnecter."
-        }
-      });
+    if (initialPlayers.length === 0) {
+      window.location.replace("/");
       return;
     }
 
     setShowModal(true);
 
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    const handleConnect = () => {
-      socket.on("room:players", (list: any[]) => {
-        setPlayers(list);
-        const current = list.find(p => p.socketId === socket.id);
-        if (current) {
-          setCurrentPlayer(current.pseudo);
-        }
-      });
-    };
-
-    if (socket.connected) {
-      handleConnect();
-    } else {
-      socket.on("connect", handleConnect);
-    }
-
-    socket.on("disconnect", () => {
-      navigate("/", {
-        state: {
-          error: "Connexion perdue. Veuillez vous reconnecter."
-        }
-      });
+    socket.on("room:players", (list: any[]) => {
+      setPlayers(list);
+      const current = list.find(p => p.socketId === socket.id);
+      if (current) {
+        setCurrentPlayer(current.pseudo);
+      }
     });
 
     return () => {
       socket.off("room:players");
-      socket.off("disconnect");
-      socket.off("connect", handleConnect);
     };
-  }, [navigate, initialPlayers.length]);
+  }, [initialPlayers.length]);
 
   const submitPseudo = () => {
     const p = pseudoInput.trim();
@@ -79,13 +49,15 @@ function Lobby() {
 
     socket.emit("player:create", p, (ack?: { ok: boolean; pseudo?: string; error: string}) => {
       if (!ack?.ok) {
-        setTimeout(() => {
+        if(ack?.error === "Room non trouvée pour ce joueur") {
           navigate("/", {
             state: {
-              error: ack?.error || "Erreur de connexion. Veuillez réessayer."
+              error: ack?.error
             },
           });
-        }, 100);
+          return;
+        }
+        setError("Pseudo déjà pris. Réessaie.");
         return;
       }
 
@@ -98,17 +70,6 @@ function Lobby() {
     socket.disconnect();
     navigate("/");
   };
-
-  if (isReconnecting) {
-    return (
-      <div className="lobby-layout" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <BeatLoader size={10} color="#007bff" />
-          <p style={{ marginTop: '20px', color: '#666' }}>Redirection en cours...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="lobby-layout">
