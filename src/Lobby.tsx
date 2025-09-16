@@ -20,17 +20,15 @@ function Lobby() {
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!location.state) {
+    const isPageReload = !socket.connected && initialPlayers.length === 0;
+
+    if (isPageReload) {
       setIsReconnecting(true);
-
-      setTimeout(() => {
-        navigate("/", {
-          state: {
-            error: "Session expirée. Veuillez vous reconnecter."
-          }
-        });
-      }, 1000);
-
+      navigate("/", {
+        state: {
+          error: "Session expirée après rechargement. Veuillez vous reconnecter."
+        }
+      });
       return;
     }
 
@@ -40,13 +38,22 @@ function Lobby() {
       socket.connect();
     }
 
-    socket.on("room:players", (list: any[]) => {
-      setPlayers(list);
-      const current = list.find(p => p.socketId === socket.id);
-      if (current) {
-        setCurrentPlayer(current.pseudo);
-      }
-    });
+    const handleConnect = () => {
+      socket.on("room:players", (list: any[]) => {
+        setPlayers(list);
+        const current = list.find(p => p.socketId === socket.id);
+        if (current) {
+          setCurrentPlayer(current.pseudo);
+        }
+      });
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.on("connect", handleConnect);
+    }
+
     socket.on("disconnect", () => {
       navigate("/", {
         state: {
@@ -58,8 +65,9 @@ function Lobby() {
     return () => {
       socket.off("room:players");
       socket.off("disconnect");
+      socket.off("connect", handleConnect);
     };
-  }, [location.state, navigate]);
+  }, [navigate, initialPlayers.length]);
 
   const submitPseudo = () => {
     const p = pseudoInput.trim();
@@ -71,11 +79,13 @@ function Lobby() {
 
     socket.emit("player:create", p, (ack?: { ok: boolean; pseudo?: string; error: string}) => {
       if (!ack?.ok) {
-        navigate("/", {
-          state: {
-            error: ack?.error || "Erreur de connexion. Veuillez réessayer."
-          },
-        });
+        setTimeout(() => {
+          navigate("/", {
+            state: {
+              error: ack?.error || "Erreur de connexion. Veuillez réessayer."
+            },
+          });
+        }, 100);
         return;
       }
 
