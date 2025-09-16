@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { BeatLoader } from "react-spinners";
 import { useLocation, useNavigate } from "react-router";
+import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
 import "./Lobby.css";
@@ -60,11 +60,7 @@ function Lobby() {
       (ack?: { ok: boolean; pseudo?: string; error: string }) => {
         if (!ack?.ok) {
           if (ack?.error === "Room non trouvée pour ce joueur") {
-            navigate("/", {
-              state: {
-                error: ack?.error,
-              },
-            });
+            navigate("/", { state: { error: ack?.error } });
             return;
           }
           setError("Pseudo déjà pris. Réessaie.");
@@ -78,7 +74,11 @@ function Lobby() {
     );
   };
 
+  // 🚪 Quitter le lobby
   const quitLobby = () => {
+    if (roomId) {
+      socket.emit("room:leave", { roomId });
+    }
     socket.disconnect();
     localStorage.removeItem("roomId");
     localStorage.removeItem("pseudo");
@@ -125,11 +125,13 @@ function Lobby() {
             ))}
           </div>
         </div>
-      </div>
 
-      <button onClick={quitLobby} className="quit-button-absolute">
-        ✕
-      </button>
+        <div style={{ marginTop: 20 }}>
+          <button onClick={quitLobby} className="quit-button">
+            🚪 Quitter le lobby
+          </button>
+        </div>
+      </div>
 
       {showModal && (
         <div
