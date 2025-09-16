@@ -53,7 +53,7 @@ function Lobby() {
       }
     });
 
-    // Écouter les mises à jour de position du joueur Unity
+    // ecouter les mises à jour de position du joueur Unity
     socket.on("player:position:update", (data: { socketId: string; pseudo: string; position: { x: number; y: number }; timestamp: number }) => {
       setUnityPlayerPosition({
         x: data.position.x,
