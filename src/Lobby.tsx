@@ -17,9 +17,28 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
   const [roomId] = useState<string>("123456");
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!location.state) {
+      setIsReconnecting(true);
+
+      setTimeout(() => {
+        navigate("/", {
+          state: {
+            error: "Session expirée. Veuillez vous reconnecter."
+          }
+        });
+      }, 1000);
+
+      return;
+    }
+
     setShowModal(true);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
 
     socket.on("room:players", (list: any[]) => {
       setPlayers(list);
@@ -28,11 +47,19 @@ function Lobby() {
         setCurrentPlayer(current.pseudo);
       }
     });
+    socket.on("disconnect", () => {
+      navigate("/", {
+        state: {
+          error: "Connexion perdue. Veuillez vous reconnecter."
+        }
+      });
+    });
 
     return () => {
       socket.off("room:players");
+      socket.off("disconnect");
     };
-  }, []);
+  }, [location.state, navigate]);
 
   const submitPseudo = () => {
     const p = pseudoInput.trim();
@@ -44,15 +71,11 @@ function Lobby() {
 
     socket.emit("player:create", p, (ack?: { ok: boolean; pseudo?: string; error: string}) => {
       if (!ack?.ok) {
-        if(ack?.error === "Room non trouvée pour ce joueur") {
-          navigate("/", {
-            state: {
-              error: ack?.error
-            },
-          });
-          return;
-        }
-        setError("Pseudo déjà pris. Réessaie.");
+        navigate("/", {
+          state: {
+            error: ack?.error || "Erreur de connexion. Veuillez réessayer."
+          },
+        });
         return;
       }
 
@@ -65,6 +88,17 @@ function Lobby() {
     socket.disconnect();
     navigate("/");
   };
+
+  if (isReconnecting) {
+    return (
+      <div className="lobby-layout" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <BeatLoader size={10} color="#007bff" />
+          <p style={{ marginTop: '20px', color: '#666' }}>Redirection en cours...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lobby-layout">
