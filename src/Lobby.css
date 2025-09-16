@@ -104,6 +104,30 @@
     letter-spacing: 1px;
 }
 
+.spectator-status {
+    background: #1e40af;
+    border: 1px solid #3b82f6;
+    border-radius: 4px;
+    padding: 8px 16px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.unity-player-info {
+    background: #065f46;
+    border: 1px solid #10b981;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 10px;
+    line-height: 1.4;
+}
+
 .players-list-section {
     flex: 1;
     display: flex;
@@ -303,6 +327,79 @@
     background: #777777;
 }
 
+/* Styles pour les marqueurs de position des joueurs */
+.player-marker {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.marker-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.marker-initial {
+    font-size: 12px;
+    font-weight: bold;
+    color: #1a1a1a;
+}
+
+.current-player-marker .marker-dot {
+    background: #4ade80;
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.6);
+}
+
+.current-player-marker .marker-initial {
+    color: #ffffff;
+}
+
+.unity-player-marker .marker-dot {
+    background: #3b82f6;
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+}
+
+.unity-player-marker .marker-initial {
+    color: #ffffff;
+}
+
+.marker-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #4ade80;
+    animation: pulse 2s infinite;
+}
+
+.unity-player-marker .marker-pulse {
+    border-color: #3b82f6;
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .interface-zone {
         width: 250px;
@@ -316,5 +413,19 @@
 
     .player-initial {
         font-size: 20px;
+    }
+
+    .marker-dot {
+        width: 20px;
+        height: 20px;
+    }
+
+    .marker-initial {
+        font-size: 10px;
+    }
+
+    .marker-pulse {
+        width: 32px;
+        height: 32px;
     }
 }

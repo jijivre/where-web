@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
@@ -17,10 +17,22 @@ function Lobby() {
   const [pseudoInput, setPseudoInput] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
+  const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string; timestamp: number } | null>(null);
+  
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapDimensions, setMapDimensions] = useState({ width: 0, height: 0 });
 
   const [roomId] = useState<string>(
     state?.roomId || localStorage.getItem("roomId") || ""
   );
+
+  // Fonction pour calculer les dimensions de la map
+  const updateMapDimensions = () => {
+    if (mapRef.current) {
+      const rect = mapRef.current.getBoundingClientRect();
+      setMapDimensions({ width: rect.width, height: rect.height });
+    }
+  };
 
   useEffect(() => {
     if (!roomId) {
@@ -41,8 +53,24 @@ function Lobby() {
       }
     });
 
+    // Écouter les mises à jour de position du joueur Unity
+    socket.on("player:position:update", (data: { socketId: string; pseudo: string; position: { x: number; y: number }; timestamp: number }) => {
+      setUnityPlayerPosition({
+        x: data.position.x,
+        y: data.position.y,
+        pseudo: data.pseudo,
+        timestamp: data.timestamp
+      });
+    });
+
+    // Mettre à jour les dimensions de la map au chargement et au redimensionnement
+    setTimeout(updateMapDimensions, 100); 
+    window.addEventListener('resize', updateMapDimensions);
+
     return () => {
       socket.off("room:players");
+      socket.off("player:position:update");
+      window.removeEventListener('resize', updateMapDimensions);
     };
   }, [roomId, navigate]);
 
@@ -88,9 +116,36 @@ function Lobby() {
   return (
     <div className="lobby-layout">
       <div className="unity-zone">
-        <div className="unity-label">Carte du jeu</div>
-        <div className="unity-viewport">
-          <img src={mapImage} alt="Carte du jeu" className="game-map-image" />
+        <div className="unity-label">Vue spectateur - Position du joueur Unity</div>
+        <div className="unity-viewport" ref={mapRef}>
+          <img 
+            src={mapImage} 
+            alt="Carte du jeu" 
+            className="game-map-image" 
+            onLoad={updateMapDimensions}
+          />
+          {/* Afficher la position du joueur Unity */}
+          {unityPlayerPosition && mapDimensions.width > 0 && mapDimensions.height > 0 && (
+            <div
+              className="player-marker unity-player-marker"
+              style={{
+                position: 'absolute',
+                left: `${unityPlayerPosition.x * mapDimensions.width}px`,
+                top: `${unityPlayerPosition.y * mapDimensions.height}px`,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10,
+                pointerEvents: 'none'
+              }}
+              title={`${unityPlayerPosition.pseudo} (Unity) - ${(unityPlayerPosition.x * 100).toFixed(1)}%, ${(unityPlayerPosition.y * 100).toFixed(1)}%`}
+            >
+              <div className="marker-dot">
+                <span className="marker-initial">
+                  {unityPlayerPosition.pseudo.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="marker-pulse"></div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -100,10 +155,20 @@ function Lobby() {
             {currentPlayer || "Anonyme"}
           </div>
           <div className="room-id-display">{roomId}</div>
+          <div className="spectator-status">
+             Mode Spectateur
+          </div>
+          {unityPlayerPosition && (
+            <div className="unity-player-info">
+               Joueur Unity: {unityPlayerPosition.pseudo}
+              <br />
+              📍 Position: {(unityPlayerPosition.x * 100).toFixed(1)}%, {(unityPlayerPosition.y * 100).toFixed(1)}%
+            </div>
+          )}
         </div>
 
         <div className="players-list-section">
-          <div className="players-list-title">Joueurs connectés</div>
+          <div className="players-list-title">Spectateurs connectés</div>
           <div className="players-vertical-list">
             {players.map((player) => (
               <div
