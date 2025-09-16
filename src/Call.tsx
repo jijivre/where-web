@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { initCall, endCall, socket } from "./webrtc";
+import { socket, initCall, endCall } from "./webrtc";
 
 function Call() {
   const [message, setMessage] = useState("");
@@ -10,6 +10,16 @@ function Call() {
   const [isConnected, setIsConnected] = useState(false);
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const savedName = localStorage.getItem("playerName");
+    const savedConnected = localStorage.getItem("isConnected") === "true";
+    if (savedName) setPlayerName(savedName);
+    if (savedConnected && savedName) {
+      socket.emit("joinAsGuide", savedName);
+      setIsConnected(true);
+    }
+  }, []);
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -35,6 +45,8 @@ function Call() {
     if (playerName.trim().length > 1) {
       socket.emit("joinAsGuide", playerName);
       setIsConnected(true);
+      localStorage.setItem("playerName", playerName);
+      localStorage.setItem("isConnected", "true");
     } else {
       alert("⚠️ Choisis un pseudo d'au moins 2 caractères");
     }
@@ -65,6 +77,14 @@ function Call() {
     setInCall(false);
   };
 
+  const disconnectGuide = () => {
+    socket.disconnect();
+    setIsConnected(false);
+    setInCall(false);
+    localStorage.removeItem("playerName");
+    localStorage.removeItem("isConnected");
+  };
+
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
       <h1>🎤 Appel Audio Temps Réel</h1>
@@ -93,7 +113,10 @@ function Call() {
           {!inCall ? (
             <button onClick={startCall}>📞 Démarrer appel</button>
           ) : (
-            <button onClick={stopCall} style={{ background: "red", color: "white" }}>
+            <button
+              onClick={stopCall}
+              style={{ background: "red", color: "white" }}
+            >
               🔴 Raccrocher
             </button>
           )}
@@ -122,10 +145,22 @@ function Call() {
               <div key={i}>{msg}</div>
             ))}
           </div>
+
+          <button
+            onClick={disconnectGuide}
+            style={{ marginTop: 20, background: "#555", color: "white" }}
+          >
+            🚪 Quitter
+          </button>
         </div>
       )}
 
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ display: "none" }}
+      />
     </div>
   );
 }
