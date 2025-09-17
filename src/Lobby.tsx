@@ -37,9 +37,7 @@ function Lobby() {
 
   const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
 
-  const [roomId] = useState<string>(
-    state?.roomId || localStorage.getItem("roomId") || ""
-  );
+  const [roomId] = useState<string>(state?.roomId || "");
 
   const mapByObstacle: Record<ObstacleType, string> = {
     walls: mapWalls,
@@ -59,7 +57,6 @@ function Lobby() {
       return;
     }
 
-    localStorage.setItem("roomId", roomId);
     setShowModal(true);
 
     socket.emit("room:join", { roomId });
@@ -81,7 +78,6 @@ function Lobby() {
     };
 
     socket.on("obstacle:assigned", onObstacleAssigned);
-
 
     return () => {
       socket.off("room:players");
@@ -112,19 +108,15 @@ function Lobby() {
 
         setCurrentPlayer(p);
         setShowModal(false);
-        localStorage.setItem("pseudo", p);
       }
     );
   };
 
-  // 🚪 Quitter le lobby
   const quitLobby = () => {
     if (roomId) {
       socket.emit("room:leave", { roomId });
     }
     socket.disconnect();
-    localStorage.removeItem("roomId");
-    localStorage.removeItem("pseudo");
     navigate("/");
   };
 
@@ -201,7 +193,7 @@ function Lobby() {
               </button>
             </div>
             <p className="modal-hint">
-              💡 Astuce : ton pseudo sera mémorisé pour ce lobby.
+              💡 Astuce : ton pseudo sera valide pour cette session.
             </p>
           </div>
         </div>

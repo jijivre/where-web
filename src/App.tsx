@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { socket } from './webrtc';
 import './App.css';
 import { useLocation, useNavigate } from 'react-router';
@@ -12,18 +12,6 @@ function App() {
 
   const [pin, setPin] = useState('');
   const [error, setError] = useState(errorLobby);
-
-  useEffect(() => {
-    const savedRoom = localStorage.getItem('roomId');
-    if (savedRoom) {
-      navigate('/lobby', {
-        state: {
-          players: [],
-          roomId: savedRoom,
-        },
-      });
-    }
-  }, [navigate]);
 
   const onValid = () => {
     setError('');
@@ -46,8 +34,6 @@ function App() {
           setError(res?.error || 'PIN invalide');
           return;
         }
-
-        localStorage.setItem('roomId', roomId);
 
         navigate('/lobby', {
           state: {
