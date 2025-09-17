@@ -3,7 +3,24 @@ import { useLocation, useNavigate } from "react-router";
 import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
+import mapWalls from "./assets/walls_map_level_one_export.png";
+import mapBox from "./assets/box_map_level_one_export.png";
+import mapBox2 from "./assets/box2_map_level_one_export.png";
+import mapLadder from "./assets/ladder_map_level_one_export.png";
+import mapVase from "./assets/vase_map_level_one_export.png";
+import mapBox3 from "./assets/box3_map_level_one_export.png";
+import mapChest from "./assets/chest_map_level_one_export.png";
+
 import "./Lobby.css";
+
+type ObstacleType =
+  | "walls"
+  | "box"
+  | "box2"
+  | "ladder"
+  | "vase"
+  | "box3"
+  | "chest";
 
 function Lobby() {
   const location = useLocation();
@@ -18,9 +35,23 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
 
+  const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
+
   const [roomId] = useState<string>(
     state?.roomId || localStorage.getItem("roomId") || ""
   );
+
+  const mapByObstacle: Record<ObstacleType, string> = {
+    walls: mapWalls,
+    box: mapBox,
+    box2: mapBox2,
+    ladder: mapLadder,
+    vase: mapVase,
+    box3: mapBox3,
+    chest: mapChest,
+  };
+
+  const displayedMap = myObstacle ? mapByObstacle[myObstacle] : mapImage;
 
   useEffect(() => {
     if (!roomId) {
@@ -41,8 +72,20 @@ function Lobby() {
       }
     });
 
+    socket.on("game:started", () => {
+      console.log(players);
+    });
+
+    const onObstacleAssigned = ({ obstacleType }: { obstacleType: ObstacleType | null }) => {
+      setMyObstacle(obstacleType);
+    };
+
+    socket.on("obstacle:assigned", onObstacleAssigned);
+
+
     return () => {
       socket.off("room:players");
+      socket.off("obstacle:assigned", onObstacleAssigned);
     };
   }, [roomId, navigate]);
 
@@ -90,7 +133,7 @@ function Lobby() {
       <div className="unity-zone">
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
-          <img src={mapImage} alt="Carte du jeu" className="game-map-image" />
+          <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
         </div>
       </div>
 
