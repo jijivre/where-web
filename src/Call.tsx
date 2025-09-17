@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { socket, initCall, endCall } from "./webrtc";
 
 function Call() {
+  const navigate = useNavigate();
+
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [playerName, setPlayerName] = useState("");
@@ -10,16 +13,6 @@ function Call() {
   const [isConnected, setIsConnected] = useState(false);
 
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    const savedName = localStorage.getItem("playerName");
-    const savedConnected = localStorage.getItem("isConnected") === "true";
-    if (savedName) setPlayerName(savedName);
-    if (savedConnected && savedName) {
-      socket.emit("joinAsGuide", savedName);
-      setIsConnected(true);
-    }
-  }, []);
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -45,8 +38,6 @@ function Call() {
     if (playerName.trim().length > 1) {
       socket.emit("joinAsGuide", playerName);
       setIsConnected(true);
-      localStorage.setItem("playerName", playerName);
-      localStorage.setItem("isConnected", "true");
     } else {
       alert("⚠️ Choisis un pseudo d'au moins 2 caractères");
     }
@@ -81,8 +72,8 @@ function Call() {
     socket.disconnect();
     setIsConnected(false);
     setInCall(false);
-    localStorage.removeItem("playerName");
-    localStorage.removeItem("isConnected");
+    setPlayerName("");
+    navigate("/");
   };
 
   return (
