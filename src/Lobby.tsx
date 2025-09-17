@@ -41,6 +41,15 @@ function Lobby() {
       }
     });
 
+    socket.on("game:started", () => {
+      console.log(players);
+    });
+
+    socket.on("obstacle:assigned", ({ obstacleType }) => {
+      console.log("Mon type d'obstacle:", obstacleType);  
+    });
+
+
     return () => {
       socket.off("room:players");
     };
