@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from "react-router";
 import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
+import mapWalls from "./assets/walls_map_level_one_export.png";
+import mapBoxes from "./assets/box_map_level_one_export.png";
+import mapLadder from "./assets/ladder_map_level_one_export.png";
+
 import "./Lobby.css";
+
+type ObstacleType = "walls" | "boxes" | "ladder";
 
 function Lobby() {
   const location = useLocation();
@@ -18,9 +24,19 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
 
+  const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
+
   const [roomId] = useState<string>(
     state?.roomId || localStorage.getItem("roomId") || ""
   );
+
+  const mapByObstacle: Record<ObstacleType, string> = {
+    walls: mapWalls,
+    boxes: mapBoxes,
+    ladder: mapLadder,
+  };
+
+  const displayedMap = myObstacle ? mapByObstacle[myObstacle] : mapImage;
 
   useEffect(() => {
     if (!roomId) {
@@ -45,13 +61,16 @@ function Lobby() {
       console.log(players);
     });
 
-    socket.on("obstacle:assigned", ({ obstacleType }) => {
-      console.log("Mon type d'obstacle:", obstacleType);  
-    });
+    const onObstacleAssigned = ({ obstacleType }: { obstacleType: ObstacleType | null }) => {
+      setMyObstacle(obstacleType);
+    };
+
+    socket.on("obstacle:assigned", onObstacleAssigned);
 
 
     return () => {
       socket.off("room:players");
+      socket.off("obstacle:assigned", onObstacleAssigned);
     };
   }, [roomId, navigate]);
 
@@ -99,7 +118,7 @@ function Lobby() {
       <div className="unity-zone">
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
-          <img src={mapImage} alt="Carte du jeu" className="game-map-image" />
+          <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
         </div>
       </div>
 
