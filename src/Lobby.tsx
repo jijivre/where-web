@@ -4,12 +4,23 @@ import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
 import mapWalls from "./assets/walls_map_level_one_export.png";
-import mapBoxes from "./assets/box_map_level_one_export.png";
+import mapBox from "./assets/box_map_level_one_export.png";
+import mapBox2 from "./assets/box2_map_level_one_export.png";
 import mapLadder from "./assets/ladder_map_level_one_export.png";
+import mapVase from "./assets/vase_map_level_one_export.png";
+import mapBox3 from "./assets/box3_map_level_one_export.png";
+import mapChest from "./assets/chest_map_level_one_export.png";
 
 import "./Lobby.css";
 
-type ObstacleType = "walls" | "boxes" | "ladder";
+type ObstacleType =
+  | "walls"
+  | "box"
+  | "box2"
+  | "ladder"
+  | "vase"
+  | "box3"
+  | "chest";
 
 function Lobby() {
   const location = useLocation();
@@ -32,8 +43,12 @@ function Lobby() {
 
   const mapByObstacle: Record<ObstacleType, string> = {
     walls: mapWalls,
-    boxes: mapBoxes,
+    box: mapBox,
+    box2: mapBox2,
     ladder: mapLadder,
+    vase: mapVase,
+    box3: mapBox3,
+    chest: mapChest,
   };
 
   const displayedMap = myObstacle ? mapByObstacle[myObstacle] : mapImage;
