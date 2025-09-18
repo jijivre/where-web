@@ -478,3 +478,27 @@
 .timer-stopped {
     opacity: 0.6;
 }
+.quit-timer-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.timer-box {
+    background: #333333;
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 70px;
+}
+
+.timer-stopped {
+    opacity: 0.6;
+}
+
