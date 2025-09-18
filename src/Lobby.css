@@ -454,3 +454,27 @@
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0.3; }
 }
+
+.quit-timer-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px; /* espace entre le bouton et le timer */
+    margin-top: 20px;
+}
+
+.timer-box {
+    background: #333333;
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    min-width: 70px;
+}
+
+.timer-stopped {
+    opacity: 0.6;
+}

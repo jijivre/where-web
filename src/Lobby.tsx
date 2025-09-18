@@ -86,7 +86,6 @@ function Lobby() {
       position: { x: number; y: number };
       timestamp: number
     }) => {
-      console.log("Position recue:", data);
       setUnityPlayerPosition({
         x: data.position.x,
         y: data.position.y,
@@ -187,14 +186,6 @@ function Lobby() {
             {currentPlayer || "Anonyme"}
           </div>
           <div className="room-id-display">{roomId}</div>
-          {timerData && (
-            <div className="timer-display">
-              <div className="timer-label">Temps restant</div>
-              <div className={`timer-value ${!timerData.isRunning ? 'timer-stopped' : ''}`}>
-                {String(timerData.minutes).padStart(2, '0')}:{String(timerData.seconds).padStart(2, '0')}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="players-list-section">
@@ -221,7 +212,12 @@ function Lobby() {
           </div>
         </div>
 
-        <div style={{ marginTop: 20 }}>
+        <div className="quit-timer-container">
+          {timerData && (
+            <div className={`timer-box ${!timerData.isRunning ? 'timer-stopped' : ''}`}>
+              {String(timerData.minutes).padStart(2, '0')}:{String(timerData.seconds).padStart(2, '0')}
+            </div>
+          )}
           <button onClick={quitLobby} className="quit-button">
             🚪 Quitter le lobby
           </button>
