@@ -35,7 +35,8 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
 
-  const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
+  const [myObstacles, setMyObstacles] = useState<ObstacleType[]>([]);
+  const [currentObstacleIndex, setCurrentObstacleIndex] = useState<number>(0);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
 
   const [roomId] = useState<string>(state?.roomId || "");
@@ -50,7 +51,8 @@ function Lobby() {
     chest: mapChest,
   };
 
-  const displayedMap = myObstacle ? mapByObstacle[myObstacle] : mapImage;
+  const currentObstacle = myObstacles.length > 0 ? myObstacles[currentObstacleIndex] : null;
+  const displayedMap = currentObstacle ? mapByObstacle[currentObstacle] : mapImage;
 
   useEffect(() => {
     if (!roomId) {
@@ -74,8 +76,10 @@ function Lobby() {
       console.log(players);
     });
 
-    const onObstacleAssigned = ({ obstacleType }: { obstacleType: ObstacleType | null }) => {
-      setMyObstacle(obstacleType);
+    const onObstaclesAssigned = ({ obstacleTypes, totalObstacles }: { obstacleTypes: ObstacleType[]; totalObstacles: number }) => {
+      setMyObstacles(obstacleTypes);
+      setCurrentObstacleIndex(0); 
+      console.log(` Reçu ${totalObstacles} obstacles:`, obstacleTypes);
     };
 
     const onPlayerPositionUpdate = (data: { 
@@ -92,12 +96,12 @@ function Lobby() {
       });
     };
 
-    socket.on("obstacle:assigned", onObstacleAssigned);
+    socket.on("obstacles:assigned", onObstaclesAssigned);
     socket.on("player:position:update", onPlayerPositionUpdate);
 
     return () => {
       socket.off("room:players");
-      socket.off("obstacle:assigned", onObstacleAssigned);
+      socket.off("obstacles:assigned", onObstaclesAssigned);
       socket.off("player:position:update", onPlayerPositionUpdate);
     };
   }, [roomId, navigate]);
@@ -190,6 +194,47 @@ function Lobby() {
             ))}
           </div>
         </div>
+
+        {myObstacles.length > 0 && (
+          <div className="obstacles-section">
+            <div className="obstacles-title">
+              Mes obstacles ({myObstacles.length})
+              {myObstacles.length > 1 && (
+                <span className="obstacle-counter">
+                  {currentObstacleIndex + 1}/{myObstacles.length}
+                </span>
+              )}
+            </div>
+            <div className="obstacles-list">
+              {myObstacles.map((obstacle, index) => (
+                <div
+                  key={obstacle}
+                  className={`obstacle-item ${index === currentObstacleIndex ? 'obstacle-active' : ''}`}
+                  title={`Obstacle ${index + 1}: ${obstacle}`}
+                  onClick={() => setCurrentObstacleIndex(index)}
+                >
+                  {obstacle.toUpperCase()}
+                </div>
+              ))}
+            </div>
+            {myObstacles.length > 1 && (
+              <div className="obstacle-navigation">
+                <button 
+                  className="nav-button"
+                  onClick={() => setCurrentObstacleIndex((prev) => (prev - 1 + myObstacles.length) % myObstacles.length)}
+                >
+                  ← Précédent
+                </button>
+                <button 
+                  className="nav-button"
+                  onClick={() => setCurrentObstacleIndex((prev) => (prev + 1) % myObstacles.length)}
+                >
+                  Suivant →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ marginTop: 20 }}>
           <button onClick={quitLobby} className="quit-button">
