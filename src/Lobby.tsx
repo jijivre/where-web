@@ -34,6 +34,7 @@ function Lobby() {
   const [pseudoInput, setPseudoInput] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
+  const [showVictoryModal, setShowVictoryModal] = useState<boolean>(false);
 
   const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
@@ -78,11 +79,11 @@ function Lobby() {
       setMyObstacle(obstacleType);
     };
 
-    const onPlayerPositionUpdate = (data: { 
-      socketId: string; 
-      pseudo: string; 
-      position: { x: number; y: number }; 
-      timestamp: number 
+    const onPlayerPositionUpdate = (data: {
+      socketId: string;
+      pseudo: string;
+      position: { x: number; y: number };
+      timestamp: number
     }) => {
       console.log("Position recue:", data);
       setUnityPlayerPosition({
@@ -92,13 +93,19 @@ function Lobby() {
       });
     };
 
+    const onGameVictory = () => {
+      setShowVictoryModal(true);
+    };
+
     socket.on("obstacle:assigned", onObstacleAssigned);
     socket.on("player:position:update", onPlayerPositionUpdate);
+    socket.on("game:victory", onGameVictory);
 
     return () => {
       socket.off("room:players");
       socket.off("obstacle:assigned", onObstacleAssigned);
       socket.off("player:position:update", onPlayerPositionUpdate);
+      socket.off("game:victory", onGameVictory);
     };
   }, [roomId, navigate]);
 
@@ -137,6 +144,15 @@ function Lobby() {
     navigate("/");
   };
 
+  const handleVictoryQuit = () => {
+    setShowVictoryModal(false);
+    if (roomId) {
+      socket.emit("room:leave", { roomId });
+    }
+    socket.disconnect();
+    navigate("/");
+  };
+
   return (
     <div className="lobby-layout">
       <div className="unity-zone">
@@ -144,7 +160,7 @@ function Lobby() {
         <div className="unity-viewport">
           <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
           {unityPlayerPosition && (
-            <div 
+            <div
               className="player-marker"
               style={{
                 left: `${unityPlayerPosition.x * 100}%`,
@@ -165,7 +181,6 @@ function Lobby() {
           </div>
           <div className="room-id-display">{roomId}</div>
         </div>
-
 
         <div className="players-list-section">
           <div className="players-list-title">Joueurs connectés</div>
@@ -225,6 +240,32 @@ function Lobby() {
             <p className="modal-hint">
               💡 Astuce : ton pseudo sera valide pour cette session.
             </p>
+          </div>
+        </div>
+      )}
+
+      {showVictoryModal && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ backgroundColor: 'rgba(0, 150, 0, 0.8)' }}
+        >
+          <div className="modal-content" style={{ backgroundColor: '#2e7d32', color: 'white' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>🏆</h2>
+            <h3>Félicitations !</h3>
+            <p style={{ fontSize: '1.2rem', margin: '1rem 0' }}>
+              Vous avez gagné !
+            </p>
+            <div className="modal-buttons">
+              <button
+                onClick={handleVictoryQuit}
+                className="validate-button"
+                style={{ backgroundColor: '#4caf50' }}
+              >
+                Quitter
+              </button>
+            </div>
           </div>
         </div>
       )}
