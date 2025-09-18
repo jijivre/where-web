@@ -35,6 +35,7 @@ function Lobby() {
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
   const [showVictoryModal, setShowVictoryModal] = useState<boolean>(false);
+  const [timerData, setTimerData] = useState<{ minutes: number; seconds: number; isRunning: boolean } | null>(null);
 
   const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
@@ -97,15 +98,21 @@ function Lobby() {
       setShowVictoryModal(true);
     };
 
+    const onTimerUpdate = (data: { minutes: number; seconds: number; isRunning: boolean }) => {
+      setTimerData(data);
+    };
+
     socket.on("obstacle:assigned", onObstacleAssigned);
     socket.on("player:position:update", onPlayerPositionUpdate);
     socket.on("game:victory", onGameVictory);
+    socket.on("timer:update", onTimerUpdate);
 
     return () => {
       socket.off("room:players");
       socket.off("obstacle:assigned", onObstacleAssigned);
       socket.off("player:position:update", onPlayerPositionUpdate);
       socket.off("game:victory", onGameVictory);
+      socket.off("timer:update", onTimerUpdate);
     };
   }, [roomId, navigate]);
 
@@ -180,6 +187,14 @@ function Lobby() {
             {currentPlayer || "Anonyme"}
           </div>
           <div className="room-id-display">{roomId}</div>
+          {timerData && (
+            <div className="timer-display">
+              <div className="timer-label">Temps restant</div>
+              <div className={`timer-value ${!timerData.isRunning ? 'timer-stopped' : ''}`}>
+                {String(timerData.minutes).padStart(2, '0')}:{String(timerData.seconds).padStart(2, '0')}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="players-list-section">
