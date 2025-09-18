@@ -387,6 +387,84 @@
     background: #777777;
 }
 
+.obstacles-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.obstacles-title {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.obstacles-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.obstacle-item {
+    background: #4a90e2;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    min-width: 60px;
+    transition: all 0.2s ease;
+}
+
+.obstacle-item:hover {
+    background: #357abd;
+    transform: translateY(-1px);
+}
+
+.obstacle-item.obstacle-active {
+    background: #e74c3c;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+.obstacle-item.obstacle-active:hover {
+    background: #c0392b;
+}
+
+.obstacle-counter {
+    font-size: 12px;
+    color: #b0b0b0;
+    margin-left: 8px;
+}
+
+.obstacle-navigation {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.nav-button {
+    background: #34495e;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-button:hover {
+    background: #2c3e50;
+    transform: translateY(-1px);
+}
+
 @media (max-width: 768px) {
     .interface-zone {
         width: 250px;
