@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from "react-router";
 import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
-import mapWalls from "./assets/walls_map_level_one_export.png";
-import mapBox from "./assets/box_map_level_one_export.png";
-import mapBox2 from "./assets/box2_map_level_one_export.png";
-import mapLadder from "./assets/ladder_map_level_one_export.png";
-import mapVase from "./assets/vase_map_level_one_export.png";
-import mapBox3 from "./assets/box3_map_level_one_export.png";
-import mapChest from "./assets/chest_map_level_one_export.png";
+//import mapWalls from "./assets/walls_map_level_one_export.png";
+//import mapBox from "./assets/box_map_level_one_export.png";
+//import mapBox2 from "./assets/box2_map_level_one_export.png";
+//import mapLadder from "./assets/ladder_map_level_one_export.png";
+//import mapVase from "./assets/vase_map_level_one_export.png";
+//import mapBox3 from "./assets/box3_map_level_one_export.png";
+//import mapChest from "./assets/chest_map_level_one_export.png";
 
 import "./Lobby.css";
 
@@ -41,7 +41,7 @@ function Lobby() {
 
   // Commenté : plus utilisé
   // const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
-  const [gameStarted, setGameStarted] = useState<boolean>(false);
+  const [setGameStarted] = useState<boolean>(false);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
 
   const [roomId] = useState<string>(state?.roomId || "");
