@@ -3,25 +3,8 @@ import { useLocation, useNavigate } from "react-router";
 import { BeatLoader } from "react-spinners";
 import { socket } from "./webrtc";
 import mapImage from "./assets/map_level_one_export.png";
-//import mapWalls from "./assets/walls_map_level_one_export.png";
-//import mapBox from "./assets/box_map_level_one_export.png";
-//import mapBox2 from "./assets/box2_map_level_one_export.png";
-//import mapLadder from "./assets/ladder_map_level_one_export.png";
-//import mapVase from "./assets/vase_map_level_one_export.png";
-//import mapBox3 from "./assets/box3_map_level_one_export.png";
-//import mapChest from "./assets/chest_map_level_one_export.png";
 
 import "./Lobby.css";
-
-// Commenté : plus utilisé pour l'affichage des cartes séparées
-// type ObstacleType =
-//   | "walls"
-//   | "box"
-//   | "box2"
-//   | "ladder"
-//   | "vase"
-//   | "box3"
-//   | "chest";
 
 function Lobby() {
   const location = useLocation();
@@ -38,27 +21,9 @@ function Lobby() {
   const [showVictoryModal, setShowVictoryModal] = useState<boolean>(false);
   const [showDefeatModal, setShowDefeatModal] = useState<boolean>(false);
   const [timerData, setTimerData] = useState<{ minutes: number; seconds: number; isRunning: boolean } | null>(null);
-
-  // Commenté : plus utilisé
-  // const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
-  const [setGameStarted] = useState<boolean>(false);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
 
   const [roomId] = useState<string>(state?.roomId || "");
-
-  // Commenté : plus utilisé pour l'affichage des cartes séparées
-  // const mapByObstacle: Record<ObstacleType, string> = {
-  //   walls: mapWalls,
-  //   box: mapBox,
-  //   box2: mapBox2,
-  //   ladder: mapLadder,
-  //   vase: mapVase,
-  //   box3: mapBox3,
-  //   chest: mapChest,
-  // };
-
-  // Toujours afficher la carte de base complète (sans obstacles séparés)
-  const displayedMap = mapImage;
 
   useEffect(() => {
     if (!roomId) {
@@ -79,14 +44,8 @@ function Lobby() {
     });
 
     socket.on("game:started", () => {
-      console.log(players);
-      setGameStarted(true);
+      console.log("Partie démarrée !", players);
     });
-
-    // Commenté : logique d'attribution des obstacles
-    // const onObstacleAssigned = ({ obstacleType }: { obstacleType: ObstacleType | null }) => {
-    //   setMyObstacle(obstacleType);
-    // };
 
     const onPlayerPositionUpdate = (data: {
       socketId: string;
@@ -112,7 +71,6 @@ function Lobby() {
       }
     };
 
-    // socket.on("obstacle:assigned", onObstacleAssigned); // Commenté
     socket.on("player:position:update", onPlayerPositionUpdate);
     socket.on("game:victory", onGameVictory);
     socket.on("timer:update", onTimerUpdate);
@@ -120,7 +78,6 @@ function Lobby() {
     return () => {
       socket.off("room:players");
       socket.off("game:started");
-      // socket.off("obstacle:assigned", onObstacleAssigned); // Commenté
       socket.off("player:position:update", onPlayerPositionUpdate);
       socket.off("game:victory", onGameVictory);
       socket.off("timer:update", onTimerUpdate);
@@ -180,7 +137,7 @@ function Lobby() {
       <div className="unity-zone">
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
-          <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
+          <img src={mapImage} alt="Carte du jeu" className="game-map-image" />
           {unityPlayerPosition && (
             <div
               className="player-marker"
