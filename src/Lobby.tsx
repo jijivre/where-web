@@ -34,8 +34,12 @@ function Lobby() {
   const [pseudoInput, setPseudoInput] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
+  const [showVictoryModal, setShowVictoryModal] = useState<boolean>(false);
+  const [showDefeatModal, setShowDefeatModal] = useState<boolean>(false);
+  const [timerData, setTimerData] = useState<{ minutes: number; seconds: number; isRunning: boolean } | null>(null);
 
   const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
+  const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
 
   const [roomId] = useState<string>(state?.roomId || "");
 
@@ -77,11 +81,41 @@ function Lobby() {
       setMyObstacle(obstacleType);
     };
 
+    const onPlayerPositionUpdate = (data: {
+      socketId: string;
+      pseudo: string;
+      position: { x: number; y: number };
+      timestamp: number
+    }) => {
+      setUnityPlayerPosition({
+        x: data.position.x,
+        y: data.position.y,
+        pseudo: data.pseudo
+      });
+    };
+
+    const onGameVictory = () => {
+      setShowVictoryModal(true);
+    };
+
+    const onTimerUpdate = (data: { minutes: number; seconds: number; isRunning: boolean }) => {
+      setTimerData(data);
+      if (data.minutes === 0 && data.seconds === 0) {
+        setShowDefeatModal(true);
+      }
+    };
+
     socket.on("obstacle:assigned", onObstacleAssigned);
+    socket.on("player:position:update", onPlayerPositionUpdate);
+    socket.on("game:victory", onGameVictory);
+    socket.on("timer:update", onTimerUpdate);
 
     return () => {
       socket.off("room:players");
       socket.off("obstacle:assigned", onObstacleAssigned);
+      socket.off("player:position:update", onPlayerPositionUpdate);
+      socket.off("game:victory", onGameVictory);
+      socket.off("timer:update", onTimerUpdate);
     };
   }, [roomId, navigate]);
 
@@ -120,20 +154,43 @@ function Lobby() {
     navigate("/");
   };
 
+  const handleVictoryQuit = () => {
+    setShowVictoryModal(false);
+    if (roomId) {
+      socket.emit("room:leave", { roomId });
+    }
+    socket.disconnect();
+    navigate("/");
+  };
+
+  const handleDefeatClose = () => {
+    setShowDefeatModal(false);
+  };
+
   return (
     <div className="lobby-layout">
       <div className="unity-zone">
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
           <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
+          {unityPlayerPosition && (
+            <div
+              className="player-marker"
+              style={{
+                left: `${unityPlayerPosition.x * 100}%`,
+                top: `${unityPlayerPosition.y * 100}%`,
+              }}
+            >
+              <div className="marker-dot"></div>
+              <div className="marker-label">{unityPlayerPosition.pseudo}</div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="interface-zone">
         <div className="header-section">
-          <div className="player-name-display">
-            {currentPlayer || "Anonyme"}
-          </div>
+          <div className="player-name-display">{currentPlayer || "Anonyme"}</div>
           <div className="room-id-display">{roomId}</div>
         </div>
 
@@ -161,7 +218,12 @@ function Lobby() {
           </div>
         </div>
 
-        <div style={{ marginTop: 20 }}>
+        <div className="quit-timer-container">
+          {timerData && (
+            <div className={`timer-box ${!timerData.isRunning ? 'timer-stopped' : ''}`}>
+              {String(timerData.minutes).padStart(2, '0')}:{String(timerData.seconds).padStart(2, '0')}
+            </div>
+          )}
           <button onClick={quitLobby} className="quit-button">
             🚪 Quitter le lobby
           </button>
@@ -169,12 +231,7 @@ function Lobby() {
       </div>
 
       {showModal && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pseudo-title"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pseudo-title">
           <div className="modal-content">
             <h3 id="pseudo-title">Choisis ton pseudo</h3>
             <input
@@ -195,6 +252,40 @@ function Lobby() {
             <p className="modal-hint">
               💡 Astuce : ton pseudo sera valide pour cette session.
             </p>
+          </div>
+        </div>
+      )}
+
+      {showVictoryModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" style={{ backgroundColor: 'rgba(0, 150, 0, 0.8)' }}>
+          <div className="modal-content" style={{ backgroundColor: '#2e7d32', color: 'white' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>🏆</h2>
+            <h3>Félicitations !</h3>
+            <p style={{ fontSize: '1.2rem', margin: '1rem 0' }}>
+              Vous avez gagné !
+            </p>
+            <div className="modal-buttons">
+              <button onClick={handleVictoryQuit} className="validate-button" style={{ backgroundColor: '#4caf50' }}>
+                Quitter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDefeatModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" style={{ backgroundColor: 'rgba(150, 0, 0, 0.8)' }}>
+          <div className="modal-content" style={{ backgroundColor: '#b91c1c', color: 'white' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏰</h2>
+            <h3>Ah pas de chance !</h3>
+            <p style={{ fontSize: '1.2rem', margin: '1rem 0' }}>
+              Le chrono est arrivé à zéro. Tu feras mieux la prochaine fois !
+            </p>
+            <div className="modal-buttons">
+              <button onClick={handleDefeatClose} className="validate-button" style={{ backgroundColor: '#ef4444' }}>
+                OK
+              </button>
+            </div>
           </div>
         </div>
       )}
