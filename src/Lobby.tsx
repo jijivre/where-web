@@ -36,6 +36,7 @@ function Lobby() {
   const [currentPlayer, setCurrentPlayer] = useState<string>("");
 
   const [myObstacle, setMyObstacle] = useState<ObstacleType | null>(null);
+  const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
 
   const [roomId] = useState<string>(state?.roomId || "");
 
@@ -77,11 +78,27 @@ function Lobby() {
       setMyObstacle(obstacleType);
     };
 
+    const onPlayerPositionUpdate = (data: { 
+      socketId: string; 
+      pseudo: string; 
+      position: { x: number; y: number }; 
+      timestamp: number 
+    }) => {
+      console.log("Position recue:", data);
+      setUnityPlayerPosition({
+        x: data.position.x,
+        y: data.position.y,
+        pseudo: data.pseudo
+      });
+    };
+
     socket.on("obstacle:assigned", onObstacleAssigned);
+    socket.on("player:position:update", onPlayerPositionUpdate);
 
     return () => {
       socket.off("room:players");
       socket.off("obstacle:assigned", onObstacleAssigned);
+      socket.off("player:position:update", onPlayerPositionUpdate);
     };
   }, [roomId, navigate]);
 
@@ -126,6 +143,18 @@ function Lobby() {
         <div className="unity-label">Carte du jeu</div>
         <div className="unity-viewport">
           <img src={displayedMap} alt="Carte du jeu" className="game-map-image" />
+          {unityPlayerPosition && (
+            <div 
+              className="player-marker"
+              style={{
+                left: `${unityPlayerPosition.x * 100}%`,
+                top: `${unityPlayerPosition.y * 100}%`,
+              }}
+            >
+              <div className="marker-dot"></div>
+              <div className="marker-label">{unityPlayerPosition.pseudo}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -136,6 +165,7 @@ function Lobby() {
           </div>
           <div className="room-id-display">{roomId}</div>
         </div>
+
 
         <div className="players-list-section">
           <div className="players-list-title">Joueurs connectés</div>
