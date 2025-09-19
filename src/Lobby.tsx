@@ -38,6 +38,7 @@ function Lobby() {
   const [showDefeatModal, setShowDefeatModal] = useState<boolean>(false);
   const [timerData, setTimerData] = useState<{ minutes: number; seconds: number; isRunning: boolean } | null>(null);
 
+  // Support pour plusieurs obstacles avec navigation
   const [myObstacles, setMyObstacles] = useState<ObstacleType[]>([]);
   const [currentObstacleIndex, setCurrentObstacleIndex] = useState<number>(0);
   const [unityPlayerPosition, setUnityPlayerPosition] = useState<{ x: number; y: number; pseudo: string } | null>(null);
@@ -54,6 +55,7 @@ function Lobby() {
     chest: mapChest,
   };
 
+  // Utilise le système d'obstacles multiples ou l'obstacle unique selon ce qui est disponible
   const currentObstacle = myObstacles.length > 0 ? myObstacles[currentObstacleIndex] : null;
   const displayedMap = currentObstacle ? mapByObstacle[currentObstacle] : mapImage;
 
@@ -79,10 +81,19 @@ function Lobby() {
       console.log(players);
     });
 
+    // Support pour l'ancien système (obstacle unique)
+    const onObstacleAssigned = ({ obstacleType }: { obstacleType: ObstacleType | null }) => {
+      if (obstacleType) {
+        setMyObstacles([obstacleType]);
+        setCurrentObstacleIndex(0);
+      }
+    };
+
+    // Support pour le nouveau système (obstacles multiples)
     const onObstaclesAssigned = ({ obstacleTypes, totalObstacles }: { obstacleTypes: ObstacleType[]; totalObstacles: number }) => {
       setMyObstacles(obstacleTypes);
       setCurrentObstacleIndex(0);
-      console.log(` Reçu ${totalObstacles} obstacles:`, obstacleTypes);
+      console.log(`Reçu ${totalObstacles} obstacles:`, obstacleTypes);
     };
 
     const onPlayerPositionUpdate = (data: {
@@ -91,6 +102,7 @@ function Lobby() {
       position: { x: number; y: number };
       timestamp: number
     }) => {
+      console.log("Position reçue:", data);
       setUnityPlayerPosition({
         x: data.position.x,
         y: data.position.y,
@@ -109,6 +121,7 @@ function Lobby() {
       }
     };
 
+    // Écouter les deux événements pour compatibilité
     socket.on("obstacle:assigned", onObstacleAssigned);
     socket.on("obstacles:assigned", onObstaclesAssigned);
     socket.on("player:position:update", onPlayerPositionUpdate);
@@ -117,6 +130,7 @@ function Lobby() {
 
     return () => {
       socket.off("room:players");
+      socket.off("obstacle:assigned", onObstacleAssigned);
       socket.off("obstacles:assigned", onObstaclesAssigned);
       socket.off("player:position:update", onPlayerPositionUpdate);
       socket.off("game:victory", onGameVictory);
@@ -223,6 +237,7 @@ function Lobby() {
           </div>
         </div>
 
+        {/* Section obstacles - affichée seulement si des obstacles sont assignés */}
         {myObstacles.length > 0 && (
           <div className="obstacles-section">
             <div className="obstacles-title">
